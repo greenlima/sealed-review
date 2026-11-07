@@ -1,12 +1,13 @@
 # Review method
 
-What a sealed-review verdict checks, what it means, and what it does not cover. The code in `watcher/`
+What a Countersign verdict checks, what it means, and what it does not cover. The code in `watcher/`
 is the method: where this page and the code differ, the code decides and this page is corrected.
 
 ## What is reviewed
 
-A **host**: one model endpoint, today GLM 5.3 Flash's direct endpoint,
-`glm-5-3-flash.completions.near.ai`, and the same model through NEAR's gateway (below). Each sweep first reads NEAR's endpoint registry (`completions.near.ai/endpoints`), which names
+A **host**: one model endpoint NEAR AI serves in a TEE. The watcher takes any host or model as an option;
+the feed covers GLM 5.3 Flash's direct endpoint, `glm-5-3-flash.completions.near.ai`, and the same model
+through NEAR's gateway (below). Each sweep first reads NEAR's endpoint registry (`completions.near.ai/endpoints`), which names
 the models each host serves. The watcher fetches its attestation report repeatedly, each time with a fresh 32-byte nonce, over TLS, and records the key of the
 TLS certificate that served it. A **machine** is identified by its instance id, the SHA-256 of its app
 compose and that TLS key, so a machine that changes any of the three counts as a new one. A verdict covers

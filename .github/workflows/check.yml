@@ -1,0 +1,46 @@
+name: check
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["feed/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  feed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: watcher-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+      - name: Build the watcher
+        run: cargo build --release --locked -p watcher
+      - name: Verify every feed entry
+        run: target/release/watcher verify --feed feed --key feed-public-a.pem --key feed-public-b.pem | tee verify.json
+      - name: Compare the feed with its mirror, read from two RPC providers
+        run: target/release/watcher mirror --contract sealed-review-feed.testnet --feed feed --key feed-public-a.pem --key feed-public-b.pem
+      - name: No current verdict expires within 24 hours
+        run: |
+          jq -e --argjson now "$(date +%s)" '[.current[].exp - $now] | all(. > 86400)' verify.json \
+            || { echo "::error::a current verdict expires within 24 hours: a new signed entry is due"; exit 1; }

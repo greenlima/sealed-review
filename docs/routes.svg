@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" role="img" aria-labelledby="t d">
+  <title id="t">The two routes</title>
+  <desc id="d">Direct route, whose highest tier is affirming: TLS from the client's gate ends at the reviewed model machine, whose key the gate checks during the handshake. Route through NEAR's gateway, whose highest tier is warning, as forwarding is not observable: TLS ends at the reviewed gateway machine, whose key the gate pins; the gateway picks the candidate machine and sees only ciphertext, because the prompt is sealed end to end to a reviewed candidate's model key.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
+    .card { fill: #ffffff; stroke: #d1d9e0; }
+    .panel { fill: #f6f8fa; }
+    .box { fill: #ffffff; stroke: #0969da; stroke-width: 1.5; }
+    .ext { fill: #ffffff; stroke: #d1d9e0; stroke-width: 1.5; }
+    .heading { fill: #1f2328; font-weight: 600; font-size: 17px; }
+    .title { fill: #1f2328; font-weight: 600; font-size: 16px; }
+    .sub { fill: #59636e; font-size: 13.5px; }
+    .label { fill: #59636e; font-style: italic; font-size: 13px; }
+    .status { fill: #59636e; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; font-size: 12.5px; }
+    .pass-text { fill: #1a7f37; font-weight: 600; }
+    .warn-text { fill: #9a6700; font-weight: 600; }
+    .pass-bar { fill: #1a7f37; }
+    .warn-bar { fill: #9a6700; }
+    .edge { fill: none; stroke: #59636e; stroke-width: 1.5; }
+    .seal { fill: none; stroke: #0969da; stroke-width: 1.5; stroke-dasharray: 5 4; }
+    .seal-label { fill: #0969da; font-style: italic; font-size: 13px; }
+    .head { fill: #59636e; }
+    .seal-head { fill: #0969da; }
+    @media (prefers-color-scheme: dark) {
+      .card { fill: #0d1117; stroke: #3d444d; }
+      .panel { fill: #151b23; }
+      .box { fill: #0d1117; stroke: #4493f8; }
+      .ext { fill: #0d1117; stroke: #3d444d; }
+      .heading, .title { fill: #f0f6fc; }
+      .sub, .label { fill: #9198a1; }
+      .status { fill: #9198a1; }
+      .pass-text, .pass-bar { fill: #3fb950; }
+      .warn-text, .warn-bar { fill: #d29922; }
+      .edge { stroke: #9198a1; }
+      .head { fill: #9198a1; }
+      .seal { stroke: #4493f8; }
+      .seal-label, .seal-head { fill: #4493f8; }
+    }
+  </style>
+  <defs>
+    <clipPath id="p1"><rect x="16" y="16" width="928" height="150" rx="10"/></clipPath>
+    <clipPath id="p2"><rect x="16" y="182" width="928" height="222" rx="10"/></clipPath>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+    <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="seal-head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="card" x="0.5" y="0.5" width="959" height="419" rx="12"/>
+
+  <rect class="panel" x="16" y="16" width="928" height="150" rx="10"/>
+  <text class="heading" x="36" y="46">Direct</text>
+  <rect class="pass-bar" x="16" y="16" width="4" height="150" clip-path="url(#p1)"/>
+  <text class="status" x="924" y="46" text-anchor="end">highest tier: <tspan class="pass-text">affirming</tspan></text>
+
+  <rect class="box" x="40" y="66" width="180" height="72" rx="10"/>
+  <text class="title" x="130" y="96" text-anchor="middle">client</text>
+  <text class="sub" x="130" y="116" text-anchor="middle">the gate</text>
+
+  <rect class="ext" x="740" y="66" width="180" height="72" rx="10"/>
+  <text class="title" x="830" y="96" text-anchor="middle">model machine</text>
+  <text class="sub" x="830" y="116" text-anchor="middle">reviewed</text>
+
+  <path class="edge" d="M220 102 H738" marker-end="url(#a)"/>
+  <text class="label" x="480" y="92" text-anchor="middle">TLS ends at the reviewed machine</text>
+  <text class="label" x="480" y="122" text-anchor="middle">the gate checks its key during the handshake</text>
+
+  <rect class="panel" x="16" y="182" width="928" height="222" rx="10"/>
+  <text class="heading" x="36" y="212">Through NEAR's gateway</text>
+  <rect class="warn-bar" x="16" y="182" width="4" height="222" clip-path="url(#p2)"/>
+  <text class="status" x="924" y="212" text-anchor="end">highest tier: <tspan class="warn-text">warning</tspan>, as forwarding is not observable</text>
+
+  <path class="seal" d="M130 296 V256 Q130 246 140 246 H820 Q830 246 830 256 V294" marker-end="url(#s)"/>
+  <rect class="panel" x="292" y="236" width="376" height="20"/>
+  <text class="seal-label" x="480" y="250" text-anchor="middle">prompt sealed end to end to a reviewed candidate's model key</text>
+
+  <rect class="box" x="40" y="296" width="180" height="72" rx="10"/>
+  <text class="title" x="130" y="326" text-anchor="middle">client</text>
+  <text class="sub" x="130" y="346" text-anchor="middle">the gate</text>
+
+  <rect class="ext" x="390" y="296" width="180" height="72" rx="10"/>
+  <text class="title" x="480" y="326" text-anchor="middle">gateway machine</text>
+  <text class="sub" x="480" y="346" text-anchor="middle">reviewed</text>
+
+  <rect class="ext" x="740" y="296" width="180" height="72" rx="10"/>
+  <text class="title" x="830" y="326" text-anchor="middle">candidate machines</text>
+  <text class="sub" x="830" y="346" text-anchor="middle">each reviewed directly</text>
+
+  <path class="edge" d="M220 332 H388" marker-end="url(#a)"/>
+  <text class="label" x="304" y="322" text-anchor="middle">TLS ends here</text>
+  <text class="label" x="304" y="352" text-anchor="middle">its key is pinned</text>
+
+  <path class="edge" d="M570 332 H738" marker-end="url(#a)"/>
+  <text class="label" x="654" y="322" text-anchor="middle">it picks the machine</text>
+  <text class="label" x="654" y="352" text-anchor="middle">and sees ciphertext</text>
+</svg>

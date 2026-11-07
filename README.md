@@ -1,19 +1,67 @@
-# sealed-review
+# Countersign
 
-An independent review of confidential-AI releases. A watcher fetches a provider's attestation report with
-its own nonce and checks it link by link: the Intel TDX quote against collateral fetched directly from
-Intel, the measured boot against the published OS image, the event log, the app's compose, the launcher
-log, the TLS and OHTTP keys, and the GPUs through NVIDIA's attestation service. The result is a signed
-verdict. Verdicts form a hash-chained feed, mirrored to a NEAR testnet contract that checks every
-signature itself, and a gate sends a request only to a machine the current verdict reviewed. What each
-check requires, how checks become a verdict, and what a verdict does not cover: [METHOD.md](METHOD.md).
+Confidential AI asks you to trust that the provider's hardware runs the code it claims, and the provider
+usually issues that evidence itself. Countersign checks the claim independently, and before your prompt
+is sent:
 
-The first subject is NEAR AI's GLM 5.3 Flash, reached directly and through NEAR's gateway, where the gate
-also encrypts each request end to end to a model key the verdict reviewed. This repository is our entry in the NEAR hackathon
-(tracks: Privacy & Private AI, AI Security & Defense). NEAR, a provider the feed reviews, pays the
-hackathon's prizes; see [Independence](METHOD.md#independence).
+- **Deeper than the provider's verifier.** Besides the Intel TDX quote and NVIDIA's GPU attestation, the
+  watcher recomputes the boot measurements (MRTD, RTMR0–2) from the published OS image, replays the event
+  log, and checks the app's compose, the launcher log, and the TLS and OHTTP keys.
+- **Signed by someone other than the provider.** Each review is an entry in a hash-chained feed, signed by a
+  person on a YubiKey that attests it generated the key, and mirrored to a NEAR testnet contract that checks
+  every signature itself and has no access keys, so nobody can change it.
+- **Acted on before the request.** The gate reads the current verdict from two RPC providers and refuses the
+  TLS connection to any machine it did not review, so no request byte reaches one. Through NEAR's gateway it
+  also encrypts the prompt end to end to a reviewed model key.
+- **Rerunnable by anyone.** The evidence behind each entry is published with it, and a public check compares
+  the feed with its mirror every day.
+
+What each check requires, how checks become a verdict, and what a verdict does not cover:
+[METHOD.md](METHOD.md). The watcher reviews any model NEAR AI serves in a TEE, reached directly or through
+NEAR's gateway (`--host`, `--model`); the feed covers one so far, GLM 5.3 Flash, by both routes. This
+repository is our entry in the NEAR hackathon (tracks: Privacy & Private AI, AI Security & Defense). NEAR, a
+provider the feed reviews, pays the hackathon's prizes; see [Independence](METHOD.md#independence). For
+coding agents: [AGENTS.md](AGENTS.md). Countersign is the project's name; `sealed-review` is its
+repository, its NEAR accounts and its policy id.
 
 Licensed under the [Apache License 2.0](LICENSE).
+
+## Check it in five minutes, without an API key
+
+```sh
+cargo build --release -p watcher
+cargo test -p watcher
+alias watcher=target/release/watcher
+watcher verify --feed feed --key feed-public-a.pem --key feed-public-b.pem
+watcher mirror --contract sealed-review-feed.testnet --feed feed --key feed-public-a.pem --key feed-public-b.pem
+watcher gate --contract sealed-review-feed.testnet --key feed-public-a.pem --key feed-public-b.pem
+cargo test -p watcher nothing_is_sent_to_an_unreviewed_machine
+```
+
+See: the build needs crates.io once; the tests and `verify` run without network. `verify` prints the current
+verdict per host and fails if one byte of any entry changes. `mirror` and `gate` only read NEAR testnet, from
+two public RPC providers, with no account or key: `mirror` prints `"ok": true` when the contract confirms the
+feed, and `gate` prints the machines a request may go to, or exits with status 1 and `refused: …` giving
+every reason, which is the gate working. The last test starts a local server the verdict did not review and
+shows that the gate sends it nothing. Steps 2 to 7 below cover the rest; only `watcher ask` needs a NEAR AI
+API key.
+
+## The cycle
+
+![The verification cycle: NEAR AI machines, the watcher, the YubiKey, the feed, the NEAR testnet mirror and the gate](docs/cycle.svg)
+
+The watcher reviews each machine it reaches, with evidence the provider cannot vouch for alone; a person
+signs the result on a hardware key; the signed feed is mirrored to a contract nobody can change; and a client
+acts on it on its own machine. Steps 2 to 5 below run each part.
+
+## The two routes
+
+![The two routes: direct, where TLS ends at the reviewed machine, and through NEAR's gateway, where the prompt is sealed to a reviewed candidate's key](docs/routes.svg)
+
+Directly, the gate checks the TLS key of the machine that answers, so the prompt reaches only a reviewed
+machine. Through the gateway, TLS ends at the gateway machine, and no client can see where it forwards the
+request; so the gate also encrypts the prompt end to end to the model key of a reviewed candidate, and refuses
+an answer that does not decrypt. The gateway still sees which model is asked, the sizes and the timing.
 
 ## Why an independent review
 
@@ -24,7 +72,7 @@ section 3.3.1): in conventional cloud set-ups "users of the environment must lar
 own assurances and security guarantees"; the attestation function "could also be organised through an
 independent third party", which "could further strengthen the independence of the function"; and "[t]he
 more frequently attestations are performed, the more rapidly any deviations affecting the integrity of
-the system can be detected". sealed-review is such a third party for NEAR AI: it checks every machine its
+the system can be detected". Countersign is such a third party for NEAR AI: it checks every machine its
 repeated fetches reach, publishes the results signed, and lets a client act on them on its own machine.
 The report comes from IMY's data protection innovation sandbox with Volvo Group, CanaryBit and Ericsson, on
 trucks' camera and sensor data rather than AI, and is guidance, not a ruling; its English text is an
@@ -57,7 +105,10 @@ See: one line per machine reached (its TLS key, then `ok` or what is missing), t
 `1 machine(s) in 5 fetch(es): 1 new, 0 seen again; 0 kept from earlier sweeps, 0 dropped (24 h old); 1 machine(s) in near`.
 Fetching stops after 4 fetches in a row reach no new machine. Each machine's evidence is saved as
 `near/machine-N.json`. Running `fetch` again refreshes the machines it reaches again (`seen again`) and
-adds new ones; evidence 24 hours old drops out.
+adds new ones; evidence 24 hours old drops out. Without `--host`, `fetch` reviews GLM 5.3 Flash's direct
+endpoint, `glm-5-3-flash.completions.near.ai`, the only model this repository's feed covers;
+`--host <model host>` reviews another model NEAR AI serves in a TEE, from the hosts NEAR's registry
+(`completions.near.ai/endpoints`) lists.
 
 ```sh
 watcher image near/machine-1.json
@@ -91,7 +142,8 @@ See: `<instance>: N candidate machine(s); saved gateway.json`, then the OS image
 each candidate, then the route's review as JSON: the gateway machine's checks, each candidate's, and the
 route's own two checks. The route is at most `warning`, because no client can see which machine the gateway
 forwards to (`forwarding_observable`). Each candidate must be a machine the direct sweep in `near` reached
-within 24 hours (`reached_directly`).
+within 24 hours (`reached_directly`). `gateway fetch --model <model id>` reviews the route for another model
+(the default is `z-ai/glm-5.3-flash`); `--direct` then names a direct sweep of that same model.
 
 ## 3. Verify the signed feed
 
@@ -129,6 +181,28 @@ its only TLS key is the gateway machine's, and its `model_keys` are the candidat
 encrypted to. `keys` lists both keys and the entry that retired a key, if any. Changing one byte of any
 entry makes `verify` fail.
 
+## 3b. Rerun the review behind an entry
+
+Each entry's evidence is attached to the release `feed-<seq>`, six digits, as the entry's file is named:
+the bundles `watcher fetch` saved (and `gateway.json` for the gateway route), with their SHA-256 sums.
+
+```sh
+seq=000001
+base=https://github.com/greenlima/sealed-review/releases/download/feed-$seq
+curl -sSL -O $base/evidence-$seq.tar.gz -O $base/SHA256SUMS
+sha256sum -c SHA256SUMS
+mkdir -p evidence/$seq && tar -xzf evidence-$seq.tar.gz -C evidence/$seq
+watcher check evidence/$seq/near/machine-1.json | jq '{tier, open: [.checks[] | select(.status != "pass") | .id]}'
+jq -R 'split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d | fromjson
+  | [.submods[] | {nonce: .eat_nonce, fetched_at: .ear_verifier_claims.fetched_at}]' feed/$seq.jwt
+jq -c '{nonce, fetched_at}' evidence/$seq/near/machine-*.json
+```
+
+See: `OK` for each file; the review of each machine, with the tier and checks the entry records for it;
+and every nonce and fetch time in the entry found in a bundle. Intel's signature on the quote covers the
+nonce, so the bundle is the evidence the signed entry rests on. For a gateway entry, run
+`watcher gateway check evidence/$seq/gateway.json --direct evidence/$seq/near`.
+
 ## 4. Compare the feed with its NEAR testnet mirror
 
 ```sh
@@ -138,6 +212,10 @@ watcher mirror --contract sealed-review-feed.testnet --feed feed --key feed-publ
 See: the mirror read from `test.rpc.fastnear.com` and `archival-rpc.testnet.near.org` at one block height,
 both providers agreeing, the contract locked (no access keys), holding the feed's two keys, and in sync with
 `feed/`.
+
+Steps 3 and 4 also run every day in public, in `.github/workflows/check.yml`, without secrets: a run fails
+if an entry does not verify, the mirror does not confirm the feed, or a current verdict expires within 24
+hours. See: its runs under the repository's Actions tab.
 
 ## 5. Gate a request
 
@@ -202,3 +280,15 @@ cargo run -- ../near/machine-1.json
 
 See: NEAR's Rust SDK run on the same evidence as the watcher, on its defaults and on a strict policy, and
 for each case whether the two agree.
+
+## How it was built
+
+All code in this repository was written during the hackathon, from 30 October 2026; no earlier code of
+ours is reused. Main libraries: `dcap-qvl` (Intel TDX quote verification), `dstack-mr` and `dstack-types`
+(dstack's measurement calculator and types), `rustls` and `reqwest` (TLS with the server's key checked
+during the handshake), `ring`, `sha2`, `hkdf`, `chacha20poly1305` and `curve25519-dalek` (signatures,
+hashes and NEAR's end-to-end encryption), `x509-cert` and `der` (the TLS certificate's key and NVIDIA's certificates), `near-sdk` (the
+mirror contract), and `nearai-inference-sdk` (NEAR's own verifier, in `compare/` only). The full lists are
+in each `Cargo.toml`, the exact versions in each `Cargo.lock`.
+
+Written with AI coding assistants (Cursor); every change reviewed and tested by the author.
