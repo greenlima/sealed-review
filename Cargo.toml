@@ -1,0 +1,9 @@
+[workspace]
+resolver = "3"
+members = ["watcher"]
+exclude = ["compare", "mirror"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.92"
+publish = false

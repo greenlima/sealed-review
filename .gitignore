@@ -1,0 +1,23 @@
+# Secrets and keys; the feed's public keys and their YubiKey attestations are the only key files kept
+.env*
+*.pem
+!feed-public-*.pem
+!feed-attestation-*.pem
+*.key
+*.p12
+*.pfx
+
+# Rust build output
+/target/
+/compare/target/
+/mirror/target/
+
+# Fetched evidence and drafts
+/near/
+*.draft
+*.sig
+
+# Editors and OS
+.DS_Store
+*.swp
+.idea/

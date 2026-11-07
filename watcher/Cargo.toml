@@ -1,0 +1,37 @@
+[package]
+name = "watcher"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "Checks a NEAR AI model endpoint's attestation link by link"
+
+[dependencies]
+anyhow = "1"
+base64 = "0.23"
+chacha20poly1305 = "0.10"
+clap = { version = "4", features = ["derive"] }
+curve25519-dalek = "4"
+dcap-qvl = "0.7"
+der = { version = "0.8", features = ["alloc"] }
+dstack-mr = { git = "https://github.com/Dstack-TEE/dstack", rev = "b63a7c8a176b412f7bfc7ad013bcd5501d48924a" }
+dstack-types = { git = "https://github.com/Dstack-TEE/dstack", rev = "b63a7c8a176b412f7bfc7ad013bcd5501d48924a" }
+flate2 = "1"
+getrandom = "0.3"
+hex = "0.4"
+hkdf = "0.12"
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+ring = "0.17"
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
+rustls-platform-verifier = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+sha2 = "0.10"
+tar = "0.4"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
+x509-cert = { version = "0.3", default-features = false }
+
+[dev-dependencies]
+rcgen = "0.14"
+tokio = { version = "1", features = ["io-util", "net"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["aws_lc_rs"] }
