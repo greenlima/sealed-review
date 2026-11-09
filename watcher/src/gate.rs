@@ -11,7 +11,7 @@ use rustls::{DigitallySignedStruct, SignatureScheme};
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::feed::{Current, Feed, HeadRef, Keys};
+use crate::feed::{Current, Feed, HeadRef, Keys, OpenCheck};
 use crate::fetch::{USER_AGENT, capped, spki_sha256};
 use crate::mirror::{self, State};
 use crate::verdict::Tier;
@@ -41,6 +41,21 @@ pub struct Pass {
     /// For a gateway route, the reviewed model keys whose status the policy accepts.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub model_keys: Vec<String>,
+    /// The verdict's checks that did not pass, with their reasons.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub open: Vec<OpenCheck>,
+}
+
+/// A short name for a check's scope: `route`, or the machine's role and instance.
+pub fn scope_name(scope: &str) -> String {
+    let mut parts = scope.split('/');
+    let first = parts.next().unwrap_or_default();
+    let (role, instance) = match first {
+        "candidate" | "gateway" => (first, parts.next().unwrap_or_default()),
+        "route" => return first.to_owned(),
+        _ => ("machine", first),
+    };
+    format!("{role} {}", &instance[..instance.len().min(8)])
 }
 
 #[derive(Debug, Serialize)]
@@ -124,6 +139,7 @@ pub fn decide(
         corrected_by: current.corrected_by,
         tls_keys: current.tls_keys.clone(),
         model_keys,
+        open: current.open.clone(),
     })
 }
 
@@ -334,6 +350,7 @@ mod tests {
 
     use super::*;
     use crate::feed::ModelKey;
+    use crate::verdict::Status;
 
     fn kids() -> Vec<String> {
         vec!["kid".into(), "other".into()]
@@ -368,6 +385,7 @@ mod tests {
             corrected_by: None,
             tls_keys: vec!["aa".into()],
             model_keys: Vec::new(),
+            open: Vec::new(),
         }
     }
 
@@ -401,6 +419,32 @@ mod tests {
         assert!(decide(&route(Some(Tier::None))).is_err());
         let pass = decide(&route(Some(Tier::Warning))).unwrap();
         assert_eq!(pass.model_keys, ["cc"]);
+    }
+
+    #[test]
+    fn a_passed_warning_carries_its_reasons() {
+        let open = OpenCheck {
+            scope: "candidate/19aea1693533dc2d/aaf70a60".into(),
+            id: "nvswitch".into(),
+            status: Status::Warn,
+            detail: "no switch evidence".into(),
+        };
+        let warning = Current {
+            open: vec![open.clone()],
+            ..current(Tier::Warning, false)
+        };
+        let pass = decide(
+            &state(0, "kid", 2),
+            &kids(),
+            Some(&head(2)),
+            Some(&warning),
+            LENIENT,
+        )
+        .unwrap();
+        assert_eq!(pass.open, [open]);
+        assert_eq!(scope_name(&pass.open[0].scope), "candidate 19aea169");
+        assert_eq!(scope_name("19aea1693533dc2d/aaf70a60"), "machine 19aea169");
+        assert_eq!(scope_name("route"), "route");
     }
 
     const STRICT: Policy = Policy {

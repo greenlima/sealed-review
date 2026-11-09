@@ -230,13 +230,15 @@ watcher gate --contract sealed-review-feed.testnet --key feed-public-a.pem --key
 ```
 
 See: whether a request to the host may be sent, and to which machines. Only an unexpired `affirming`
-verdict passes; `--accept warning` also lets `warning` through.
+verdict passes; `--accept warning` also lets `warning` through, and `open` lists every check of the
+verdict that did not pass, with its reason (each check id is explained in [METHOD.md](METHOD.md)).
 
 ```sh
 NEARAI_API_KEY=... watcher ask --contract sealed-review-feed.testnet --key feed-public-a.pem --key feed-public-b.pem --prompt "Hello"
 ```
 
-See: the model's answer and the TLS key of the machine that served it. The gate checks the server's key
+See: with `--accept warning`, one line per check the verdict did not pass, with its reason, before the
+request is sent; then the model's answer and the TLS key of the machine that served it. The gate checks the server's key
 during the TLS handshake, so no request byte reaches a machine the verdict did not review.
 
 ```sh

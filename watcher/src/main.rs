@@ -436,6 +436,20 @@ async fn main() -> Result<()> {
                 serde_json::to_value(admission.pass.status)?,
                 admission.pass.tls_keys.len()
             );
+            for check in &admission.pass.open {
+                eprintln!(
+                    "  {} {} {}: {}",
+                    gate::scope_name(&check.scope),
+                    serde_json::to_value(check.status)?
+                        .as_str()
+                        .unwrap_or_default(),
+                    check.id,
+                    check.detail
+                );
+            }
+            if !admission.pass.open.is_empty() {
+                eprintln!("  each check is explained in METHOD.md");
+            }
             let sealed = routed
                 .map(|_| {
                     let key = admission

@@ -252,6 +252,7 @@ struct Verdict {
     status: Tier,
     exp: u64,
     submods: BTreeMap<String, MachineRef>,
+    route: Vec<CheckRef>,
 }
 
 impl Head {
@@ -289,6 +290,7 @@ impl Head {
             status,
             exp,
             submods,
+            route: scope.route,
         };
         Ok((sr_feed, Body::Verdict(verdict)))
     }
@@ -297,6 +299,8 @@ impl Head {
 #[derive(Debug, Deserialize)]
 struct HostOnly {
     host: String,
+    #[serde(default)]
+    route: Vec<CheckRef>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -322,6 +326,8 @@ struct TlsOnly {
 struct CheckRef {
     id: String,
     status: Status,
+    #[serde(default)]
+    detail: String,
 }
 
 /// Checks a candidate's key must pass before a client encrypts to it.
@@ -398,6 +404,38 @@ pub struct Current {
     pub tls_keys: Vec<String>,
     /// For a gateway route, the model keys a request may be encrypted to.
     pub model_keys: Vec<ModelKey>,
+    /// Every check of the verdict that did not pass, with its reason: why it is not `affirming`.
+    pub open: Vec<OpenCheck>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct OpenCheck {
+    /// The machine's submod label, or `route` for a gateway route's own checks.
+    pub scope: String,
+    pub id: String,
+    pub status: Status,
+    pub detail: String,
+}
+
+impl Verdict {
+    fn open(&self) -> Vec<OpenCheck> {
+        let machines = self.submods.iter().flat_map(|(label, m)| {
+            m.ear_verifier_claims
+                .checks
+                .iter()
+                .map(move |c| (label.as_str(), c))
+        });
+        machines
+            .chain(self.route.iter().map(|c| ("route", c)))
+            .filter(|(_, c)| c.status != Status::Pass)
+            .map(|(scope, c)| OpenCheck {
+                scope: scope.to_owned(),
+                id: c.id.clone(),
+                status: c.status,
+                detail: c.detail.clone(),
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -872,6 +910,7 @@ impl Feed {
                             .iter()
                             .filter_map(|(label, m)| m.model_key(label))
                             .collect(),
+                        open: v.open(),
                     },
                 );
                 continue;
@@ -1148,7 +1187,12 @@ mod tests {
             nonce: "00".repeat(32),
             peer_spki_sha256: "aa".repeat(32),
             tier: Tier::Warning,
-            route: Vec::new(),
+            route: vec![Check::new(
+                12,
+                "forwarding_observable",
+                Status::Warn,
+                "not visible",
+            )],
             gateway: machine("gateway-1", Some("aa".repeat(32))),
             candidates: vec![machine("model-1", Some("cc".repeat(32))), unmatched],
         }
@@ -1177,6 +1221,20 @@ mod tests {
             }],
             "only the candidate whose key is bound and reached directly"
         );
+        let open: Vec<(&str, &str, Status)> = current
+            .open
+            .iter()
+            .map(|c| (c.scope.split('/').next().unwrap(), c.id.as_str(), c.status))
+            .collect();
+        assert_eq!(
+            open,
+            [
+                ("candidate", "reached_directly", Status::Unknown),
+                ("route", "forwarding_observable", Status::Warn),
+            ],
+            "every check that did not pass, the route's own included"
+        );
+        assert_eq!(current.open[1].detail, "not visible");
     }
 
     #[test]
