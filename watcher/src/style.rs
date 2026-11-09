@@ -10,11 +10,12 @@ use crate::feed::OpenCheck;
 use crate::gate::{Pass, scope_name};
 use crate::verdict::{Status, Tier};
 
-const GREEN: &str = "1;92";
-const YELLOW: &str = "1;93";
-const RED: &str = "1;91";
-const MAGENTA: &str = "1;95";
-const CYAN: &str = "36";
+/// 256-colour codes, so the colours do not depend on the terminal's scheme.
+const GREEN: &str = "1;38;5;42";
+const YELLOW: &str = "1;38;5;220";
+const RED: &str = "1;38;5;203";
+const MAGENTA: &str = "1;38;5;177";
+const CYAN: &str = "38;5;45";
 const DIM: &str = "2";
 const BOLD: &str = "1";
 const WIDEST: usize = 120;
@@ -226,7 +227,7 @@ impl Style {
         self.paint(MAGENTA, &"─".repeat(self.width))
     }
 
-    pub fn refused(self, error: &anyhow::Error) -> String {
+    pub fn failed(self, error: &anyhow::Error) -> String {
         format!("{} {error:#}", self.paint(RED, "✗"))
     }
 }
@@ -363,9 +364,9 @@ mod tests {
     #[test]
     fn colour_marks_the_tier_and_each_check() {
         let out = COLOR.passed(&warning());
-        assert!(out.contains("\x1b[1;93mwarning\x1b[0m"), "{out}");
+        assert!(out.contains("\x1b[1;38;5;220mwarning\x1b[0m"), "{out}");
         assert!(
-            out.contains("\x1b[1;93mforwarding_observable\x1b[0m"),
+            out.contains("\x1b[1;38;5;220mforwarding_observable\x1b[0m"),
             "{out}"
         );
         assert!(!PLAIN.passed(&warning()).contains('\x1b'));

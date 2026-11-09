@@ -438,7 +438,7 @@ async fn main() -> Result<()> {
             let admission = match admitted {
                 Ok(admission) => admission,
                 Err(refusal) => {
-                    eprintln!("{}", style.refused(&refusal));
+                    eprintln!("{}", style.failed(&refusal));
                     std::process::exit(1);
                 }
             };
@@ -476,7 +476,13 @@ async fn main() -> Result<()> {
             )
             .await;
             drop(waiting);
-            let mut answer = answered?;
+            let mut answer = match answered {
+                Ok(answer) => answer,
+                Err(error) => {
+                    eprintln!("{}", style.failed(&error));
+                    std::process::exit(1);
+                }
+            };
             if let Some(client) = &sealed {
                 client.open_answer(&mut answer.response)?;
             }

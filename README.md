@@ -1,18 +1,24 @@
 # Countersign
 
 Confidential AI asks you to trust that the provider's hardware runs the code it claims, and the provider
-usually issues that evidence itself. Countersign checks the claim independently, and before your prompt
-is sent:
+usually issues that evidence itself. A receipt proves afterwards what a machine signed; Countersign decides
+beforehand whether to send your prompt, on a review signed by someone other than the provider:
 
-- **Deeper than the provider's verifier.** Besides the Intel TDX quote and NVIDIA's GPU attestation, the
-  watcher recomputes the boot measurements (MRTD, RTMR0–2) from the published OS image, replays the event
-  log, and checks the app's compose, the launcher log, and the TLS and OHTTP keys.
+- **Held to what was published.** Besides the Intel TDX quote and NVIDIA's GPU attestation, the watcher
+  recomputes the boot measurements (MRTD, RTMR0–2) from the published OS image, so a machine is checked
+  against the image its provider published, not only against the event log it reports, and it judges
+  Intel's rating of the platform's patch level (TCB status). It also replays the event log and checks the
+  app's compose, the launcher log, and the TLS and OHTTP keys.
 - **Signed by someone other than the provider.** Each review is an entry in a hash-chained feed, signed by a
   person on a YubiKey that attests it generated the key, and mirrored to a NEAR testnet contract that checks
   every signature itself and has no access keys, so nobody can change it.
 - **Acted on before the request.** The gate reads the current verdict from two RPC providers and refuses the
   TLS connection to any machine it did not review, so no request byte reaches one. Through NEAR's gateway it
   also encrypts the prompt end to end to a reviewed model key.
+- **A verdict says why.** Every check that does not pass carries its reason. For a `warning` verdict,
+  `watcher ask --accept warning` lists each reason before anything is sent; without the flag the gate refuses.
+- **Readable by other contracts.** The mirror answers `hosts` and `latest(host)` with each host's current
+  verdict, so a NEAR contract or app can act on the same review.
 - **Rerunnable by anyone.** The evidence behind each entry is published with it, and a public check compares
   the feed with its mirror every day.
 
@@ -26,7 +32,7 @@ repository, its NEAR accounts and its policy id.
 
 Licensed under the [Apache License 2.0](LICENSE).
 
-## Check it in five minutes, without an API key
+## Check it without an API key
 
 ```sh
 cargo build --release -p watcher
@@ -45,6 +51,10 @@ feed, and `gate` prints the machines a request may go to, or exits with status 1
 every reason, which is the gate working. The last test starts a local server the verdict did not review and
 shows that the gate sends it nothing. Steps 2 to 7 below cover the rest; only `watcher ask` needs a NEAR AI
 API key.
+
+Measured on a clean clone (2026-11-09, 4 build jobs on an 8-core machine, crates not yet downloaded): the build
+5 min 41 s, the tests 49 s, `mirror` and `gate` about 6.5 s each, `verify` and the last test under a second;
+about 7 minutes in all, nearly all of it the first build.
 
 ## The cycle
 
