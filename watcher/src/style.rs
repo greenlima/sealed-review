@@ -10,10 +10,10 @@ use crate::feed::OpenCheck;
 use crate::gate::{Pass, scope_name};
 use crate::verdict::{Status, Tier};
 
-const GREEN: &str = "1;32";
-const YELLOW: &str = "1;33";
-const RED: &str = "1;31";
-const MAGENTA: &str = "1;35";
+const GREEN: &str = "1;92";
+const YELLOW: &str = "1;93";
+const RED: &str = "1;91";
+const MAGENTA: &str = "1;95";
 const CYAN: &str = "36";
 const DIM: &str = "2";
 const BOLD: &str = "1";
@@ -363,9 +363,9 @@ mod tests {
     #[test]
     fn colour_marks_the_tier_and_each_check() {
         let out = COLOR.passed(&warning());
-        assert!(out.contains("\x1b[1;33mwarning\x1b[0m"), "{out}");
+        assert!(out.contains("\x1b[1;93mwarning\x1b[0m"), "{out}");
         assert!(
-            out.contains("\x1b[1;33mforwarding_observable\x1b[0m"),
+            out.contains("\x1b[1;93mforwarding_observable\x1b[0m"),
             "{out}"
         );
         assert!(!PLAIN.passed(&warning()).contains('\x1b'));

@@ -148,10 +148,12 @@ async fn call(client: &reqwest::Client, rpc: &str, method: &str, params: Value) 
 }
 
 async fn final_height(client: &reqwest::Client, rpc: &str) -> Result<u64> {
-    let block = call(client, rpc, "block", json!({ "finality": "final" })).await?;
+    let block = call(client, rpc, "block", json!({ "finality": "final" }))
+        .await
+        .with_context(|| format!("{rpc}: latest final block"))?;
     block["header"]["height"]
         .as_u64()
-        .context("block: no height")
+        .with_context(|| format!("{rpc}: block: no height"))
 }
 
 struct At<'a> {
@@ -182,13 +184,15 @@ impl At<'_> {
     }
 
     async fn read(&self) -> Result<(State, Vec<String>)> {
-        let account = self.query("view_account").await?;
-        let keys = self.query("view_access_key_list").await?;
-        let feed_keys: Vec<FeedKey> = self.view("feed_keys", json!({})).await?;
-        let head: Option<Head> = self.view("head", json!({})).await?;
+        let (account, keys, feed_keys, head, mut entries) = tokio::try_join!(
+            self.query("view_account"),
+            self.query("view_access_key_list"),
+            self.view::<Vec<FeedKey>>("feed_keys", json!({})),
+            self.view::<Option<Head>>("head", json!({})),
+            self.view::<Vec<String>>("entries", json!({ "from": 1, "limit": PAGE })),
+        )?;
         let count = head.as_ref().map_or(0, |h| h.seq);
-        let mut entries = Vec::with_capacity(usize::try_from(count)?);
-        for from in (1..=count).step_by(PAGE as usize) {
+        for from in (1 + PAGE..=count).step_by(PAGE as usize) {
             let page: Vec<String> = self
                 .view("entries", json!({ "from": from, "limit": PAGE }))
                 .await?;
@@ -215,7 +219,35 @@ impl At<'_> {
     }
 }
 
-/// Reads the contract and all its entries from both providers, at the lower of their final heights.
+async fn provider(
+    client: &reqwest::Client,
+    rpc: &'static str,
+    contract: &str,
+    height: u64,
+) -> Provider {
+    let at = At {
+        client,
+        rpc,
+        contract,
+        height,
+    };
+    match at.read().await {
+        Ok((state, entries)) => Provider {
+            rpc,
+            state: Some(state),
+            error: None,
+            entries,
+        },
+        Err(e) => Provider {
+            rpc,
+            state: None,
+            error: Some(format!("{e:#}")),
+            entries: Vec::new(),
+        },
+    }
+}
+
+/// Reads the contract and all its entries from both providers at once, at the lower of their final heights.
 pub async fn observe(contract: &str) -> Result<Observation> {
     ensure!(
         valid_account(contract),
@@ -226,36 +258,14 @@ pub async fn observe(contract: &str) -> Result<Observation> {
         .timeout(Duration::from_secs(30))
         .user_agent(USER_AGENT)
         .build()?;
-    let mut height = u64::MAX;
-    for rpc in RPCS {
-        let h = final_height(&client, rpc)
-            .await
-            .with_context(|| format!("{rpc}: latest final block"))?;
-        height = height.min(h);
-    }
-    let mut providers = Vec::with_capacity(RPCS.len());
-    for rpc in RPCS {
-        let at = At {
-            client: &client,
-            rpc,
-            contract,
-            height,
-        };
-        providers.push(match at.read().await {
-            Ok((state, entries)) => Provider {
-                rpc,
-                state: Some(state),
-                error: None,
-                entries,
-            },
-            Err(e) => Provider {
-                rpc,
-                state: None,
-                error: Some(format!("{e:#}")),
-                entries: Vec::new(),
-            },
-        });
-    }
+    let [one, two] = RPCS;
+    let (h1, h2) = tokio::try_join!(final_height(&client, one), final_height(&client, two))?;
+    let height = h1.min(h2);
+    let (p1, p2) = tokio::join!(
+        provider(&client, one, contract, height),
+        provider(&client, two, contract, height)
+    );
+    let providers = vec![p1, p2];
     let first = &providers[0];
     let agree = first.state.is_some()
         && providers
