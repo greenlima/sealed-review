@@ -26,6 +26,7 @@ mod quote;
 mod registry;
 mod report;
 mod review;
+mod style;
 mod verdict;
 
 #[derive(Parser)]
@@ -429,27 +430,19 @@ async fn main() -> Result<()> {
             }
             let api_key = std::env::var("NEARAI_API_KEY")
                 .context("set NEARAI_API_KEY to your NEAR AI API key")?;
-            let admission = gate.admit().await?;
-            eprintln!(
-                "gate passed: entry {} ({}), {} reviewed machine(s)",
-                admission.pass.seq,
-                serde_json::to_value(admission.pass.status)?,
-                admission.pass.tls_keys.len()
-            );
-            for check in &admission.pass.open {
-                eprintln!(
-                    "  {} {} {}: {}",
-                    gate::scope_name(&check.scope),
-                    serde_json::to_value(check.status)?
-                        .as_str()
-                        .unwrap_or_default(),
-                    check.id,
-                    check.detail
-                );
-            }
-            if !admission.pass.open.is_empty() {
-                eprintln!("  each check is explained in METHOD.md");
-            }
+            let style = style::Style::stderr();
+            let reading =
+                style.spin("reading the verdicts from the NEAR mirror, through two providers");
+            let admitted = gate.admit().await;
+            drop(reading);
+            let admission = match admitted {
+                Ok(admission) => admission,
+                Err(refusal) => {
+                    eprintln!("{}", style.refused(&refusal));
+                    std::process::exit(1);
+                }
+            };
+            eprint!("{}", style.passed(&admission.pass));
             let sealed = routed
                 .map(|_| {
                     let key = admission
@@ -469,7 +462,8 @@ async fn main() -> Result<()> {
                 "messages": [{ "role": "user", "content": content }],
                 "stream": false,
             });
-            let mut answer = gate::ask(
+            let waiting = style.spin(&format!("waiting for {model} to answer"));
+            let answered = gate::ask(
                 &format!("https://{connect}"),
                 gate::system_roots()?,
                 &admission.pass.tls_keys,
@@ -480,20 +474,21 @@ async fn main() -> Result<()> {
                     .unwrap_or_default(),
                 &request,
             )
-            .await?;
-            eprintln!("answered on the connection with TLS key {}", answer.tls_key);
+            .await;
+            drop(waiting);
+            let mut answer = answered?;
             if let Some(client) = &sealed {
                 client.open_answer(&mut answer.response)?;
-                eprintln!(
-                    "end-to-end encrypted to model key {}",
-                    &client.model_key()[..16]
-                );
             }
+            let model_key = sealed.as_ref().map(|c| &c.model_key()[..16]);
+            eprint!("{}", style.served(&answer.tls_key, model_key));
+            eprintln!("{}", style.opening(&model));
             let content = &answer.response["choices"][0]["message"]["content"];
             match content.as_str() {
                 Some(text) => println!("{text}"),
                 None => println!("{}", serde_json::to_string_pretty(&answer.response)?),
             }
+            eprintln!("{}", style.closing());
         }
         Command::Gateway { command } => gateway_command(command).await?,
     }

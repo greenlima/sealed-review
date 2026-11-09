@@ -237,8 +237,9 @@ verdict that did not pass, with its reason (each check id is explained in [METHO
 NEARAI_API_KEY=... watcher ask --contract sealed-review-feed.testnet --key feed-public-a.pem --key feed-public-b.pem --prompt "Hello"
 ```
 
-See: with `--accept warning`, one line per check the verdict did not pass, with its reason, before the
-request is sent; then the model's answer and the TLS key of the machine that served it. The gate checks the server's key
+See: with `--accept warning`, a table of each check the verdict did not pass, with its reason, before the
+request is sent; then the TLS key of the machine that served it, and the model's answer between two rules (on
+stdout, the answer alone; colour only on a terminal, and never with `NO_COLOR` set). The gate checks the server's key
 during the TLS handshake, so no request byte reaches a machine the verdict did not review.
 
 ```sh
