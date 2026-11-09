@@ -200,8 +200,14 @@ jq -c '{nonce, fetched_at}' evidence/$seq/near/machine-*.json
 
 See: `OK` for each file; the review of each machine, with the tier and checks the entry records for it;
 and every nonce and fetch time in the entry found in a bundle. Intel's signature on the quote covers the
-nonce, so the bundle is the evidence the signed entry rests on. For a gateway entry, run
-`watcher gateway check evidence/$seq/gateway.json --direct evidence/$seq/near`.
+nonce, so the bundle is the evidence the signed entry rests on. For a gateway entry, the entry's nonce and
+fetch time are the gateway fetch's, in `gateway.json`; the `near/` bundles are the direct sweep its candidates
+are checked against:
+
+```sh
+watcher gateway check evidence/$seq/gateway.json --direct evidence/$seq/near
+jq -c '{nonce, fetched_at}' evidence/$seq/gateway.json
+```
 
 ## 4. Compare the feed with its NEAR testnet mirror
 
