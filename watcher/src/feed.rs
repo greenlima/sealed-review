@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 
 use crate::bundle::{Bundle, MAX_AGE_SECS, Sweep};
 use crate::gateway;
+use crate::launcher::Workload;
 use crate::review::{Facts, Review};
 use crate::verdict::{Check, Status, Tier};
 
@@ -22,12 +23,15 @@ const ALG: &str = "ES256";
 const DEVELOPER: &str = "sealed-review";
 const BUILD: &str = concat!("sealed-review-watcher/", env!("CARGO_PKG_VERSION"));
 const KEY_RELEASE: &str = "key release: the app's keys go to any code its key-release contracts admit; those contracts are not checked";
-const NOT_REVIEWED: [&str; 2] = [
+const CODE: &str = "code: whether the services' code has flaws; the workload is the one running at the fetch, and a later deployment keeps the machine's identity";
+const NOT_REVIEWED: [&str; 3] = [
     KEY_RELEASE,
+    CODE,
     "machines: only the machines the last 24 hours' fetches reached; others may serve the same host",
 ];
-const GATEWAY_NOT_REVIEWED: [&str; 3] = [
+const GATEWAY_NOT_REVIEWED: [&str; 4] = [
     KEY_RELEASE,
+    CODE,
     "forwarding: which machine the gateway forwards a request to; the candidates are not an inventory of those machines",
     "answers: response signatures are not checked; a streamed answer is signed by the gateway only",
 ];
@@ -212,7 +216,7 @@ struct Scope<'a> {
     sweeps: usize,
     tries: u32,
     machines: usize,
-    not_reviewed: [&'a str; 2],
+    not_reviewed: [&'a str; 3],
 }
 
 /// A route through the gateway: `host` names it, `connect` is where the client connects.
@@ -224,7 +228,7 @@ struct GatewayScope<'a> {
     /// The gateway machine and each candidate.
     machines: usize,
     route: &'a [Check],
-    not_reviewed: [&'a str; 3],
+    not_reviewed: [&'a str; 4],
 }
 
 /// The signed claims a feed check reads; everything else in an entry is for its consumers.
@@ -313,6 +317,10 @@ struct MachineRef {
 #[derive(Debug, Deserialize)]
 struct SignerOnly {
     signing_key: String,
+    #[serde(default)]
+    instance_id: Option<String>,
+    #[serde(default)]
+    workload: Option<Workload>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -406,6 +414,17 @@ pub struct Current {
     pub model_keys: Vec<ModelKey>,
     /// Every check of the verdict that did not pass, with its reason: why it is not `affirming`.
     pub open: Vec<OpenCheck>,
+    /// Each machine the verdict reviewed, with the workload it ran then.
+    pub machines: Vec<Reviewed>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct Reviewed {
+    /// The machine's submod label.
+    pub scope: String,
+    pub instance_id: Option<String>,
+    /// Absent in entries written before workloads were recorded, and for a machine without a launcher.
+    pub workload: Option<Workload>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -911,6 +930,15 @@ impl Feed {
                             .filter_map(|(label, m)| m.model_key(label))
                             .collect(),
                         open: v.open(),
+                        machines: v
+                            .submods
+                            .iter()
+                            .map(|(label, m)| Reviewed {
+                                scope: label.clone(),
+                                instance_id: m.ear_attester_claims.instance_id.clone(),
+                                workload: m.ear_attester_claims.workload.clone(),
+                            })
+                            .collect(),
                     },
                 );
                 continue;
@@ -1031,6 +1059,12 @@ mod tests {
     use crate::review::Facts;
     use crate::verdict::{Check, Status};
 
+    fn sample_workload() -> Workload {
+        crate::launcher::workload(&[serde_json::json!({
+            "action": "compose_up", "file": "glm.yaml", "file_sha256": "s1", "tag": "v1", "services": "['r1']"
+        })])
+    }
+
     /// A made-up review of a made-up machine; the feed signs whatever the review says.
     fn reviewed(bundle: Bundle) -> (Bundle, Review) {
         let review = Review {
@@ -1052,6 +1086,7 @@ mod tests {
                 ohttp: None,
                 kms: None,
                 key_provider_id: None,
+                workload: Some(sample_workload()),
             },
             checks: vec![Check::new(
                 2,
@@ -1352,6 +1387,19 @@ mod tests {
             feed.verdict(&f.sweep, &f.reviewed, fetched + MAX_AGE_SECS)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn a_verdict_records_each_machines_workload() {
+        let f = Fixture::new("workload");
+        f.append(&f.verdict());
+        let current = &f.feed().unwrap().summary(f.now).current[0];
+        let machines: Vec<(Option<&str>, Option<&Workload>)> = current
+            .machines
+            .iter()
+            .map(|m| (m.instance_id.as_deref(), m.workload.as_ref()))
+            .collect();
+        assert_eq!(machines, [(Some("instance-1"), Some(&sample_workload()))]);
     }
 
     #[test]

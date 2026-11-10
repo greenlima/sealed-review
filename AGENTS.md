@@ -10,7 +10,7 @@ agent and the policy id in each entry, which the locked contract and the signed 
 
 | Path | What it is |
 | --- | --- |
-| `watcher/` | The command-line watcher (Rust, the workspace's only member): fetch, check, diff, draft, seal, verify, mirror, gate, ask, gateway |
+| `watcher/` | The command-line watcher (Rust, the workspace's only member): fetch, check, diff, draft, seal, verify, mirror, drift, gate, ask, gateway |
 | `mirror/` | The NEAR testnet contract (its own crate, `near-sdk`, toolchain pinned in `mirror/rust-toolchain.toml`) |
 | `compare/` | NEAR's own Rust SDK run on the same evidence as the watcher (its own crate) |
 | `feed/` | The signed entries `000001.jwt`, `000002.jwt`, … |
@@ -26,6 +26,7 @@ agent and the policy id in each entry, which the locked contract and the signed 
 | Nothing | `cargo test -p watcher`; `watcher verify`; `watcher check` and `watcher diff` on a saved bundle once `watcher image` has cached its OS image |
 | Read-only NEAR testnet RPC (`test.rpc.fastnear.com`, `archival-rpc.testnet.near.org`) | `watcher mirror`, `watcher gate` |
 | NEAR AI's endpoints, Intel PCS, NVIDIA's attestation service and GitHub; no key | `watcher fetch`, `watcher image`, `watcher gateway fetch`, `watcher gateway image` |
+| NEAR AI's endpoints only; no key | `watcher drift` |
 | rustup (toolchain download) | `cd mirror && cargo test` |
 | Docker | `cd mirror && cargo near build reproducible-wasm` |
 | A NEAR AI API key in `NEARAI_API_KEY` | `watcher ask` |
@@ -44,6 +45,9 @@ AI serves in a TEE; both default to GLM 5.3 Flash, the only model this repositor
 - `gate`: 0 with the machines a request may go to; 1 with `refused: …` and every reason when the current
   verdict does not pass, for example a `warning` without `--accept warning`, or an expired verdict. A
   refusal is the gate working.
+- `drift`: 0 with each machine reached per unexpired verdict as JSON; non-zero when a reviewed machine
+  runs another workload than its verdict recorded, or a fetch fails. Machines no verdict covers are listed,
+  not failed.
 - `check`: 0 with the review as JSON, whatever the tier. Without the OS image in the cache, `os_image` and
   `measurements` are `unknown`, so the tier is `none`; run `watcher image <bundle>` first.
 
@@ -59,6 +63,7 @@ AI serves in a TEE; both default to GLM 5.3 Flash, the only model this repositor
 | The quote binds our nonce, the signing key and the TLS key of the connection that returned the report; MRCONFIGID carries the compose hash | `watcher/src/binding.rs`, `watcher/src/fetch.rs` | checks `nonce_fresh`, `signer_bound`, `tls_bound`, `config_measured` |
 | An offered OHTTP key is signed by the bound key | `watcher/src/ohttp.rs` | check `ohttp_key_bound` |
 | The launcher's action log recomputes, carries our nonce and is quoted by the same machine | `watcher/src/launcher.rs` | check `launcher_log_bound` |
+| Each verdict records the workload the launcher log leaves running, and a later change on a reviewed machine is reported | `watcher/src/launcher.rs` (`workload`, `changes`), `watcher/src/drift.rs` | tests `the_log_replays_to_what_runs`, `a_service_belongs_to_the_last_file_that_started_it`, `changes_name_each_moved_service_but_not_a_new_tag`, `each_machine_is_matched_by_instance`, `a_verdict_records_each_machines_workload`; `watcher drift` |
 | NVIDIA's tokens are verified locally against pinned NVIDIA keys, and every declared GPU is affirmed with our nonce | `watcher/src/gpu.rs` | checks `gpu`, `nvswitch` (`no_gpus` for the gateway machine) |
 | The model named is one NEAR's registry lists for the host | `watcher/src/registry.rs` | check `model_registered` |
 | The gateway route is at most `warning`; each candidate must be a machine reached directly; the gateway's compose pins every image | `watcher/src/gateway.rs`, `watcher/src/compose.rs` | checks `forwarding_observable`, `reached_directly`, `model_requested`, `compose_pinned`; test `a_gateway_entry_pins_only_the_gateway` |
@@ -71,7 +76,7 @@ AI serves in a TEE; both default to GLM 5.3 Flash, the only model this repositor
 | Through the gateway, the prompt is encrypted end to end to a reviewed model key and an answer that does not decrypt is refused | `watcher/src/e2ee.rs` | tests `a_request_matches_the_reference`, `an_answer_from_the_reference_opens`, `a_changed_or_plain_answer_is_refused`, `a_bad_model_key_is_refused` |
 | Each feed key was generated on its own YubiKey, which needs a PIN and a touch to sign | `feed-attestation-*.pem` | README step 3: `openssl verify` against Yubico's root, and the policy bytes `0302` |
 | The evidence behind each entry is published | GitHub release `feed-<seq>` | README step 3b: the nonces and fetch times in the entry are found in the bundles |
-| The feed and the mirror are checked in public every day | `.github/workflows/check.yml` | the repository's Actions tab |
+| The feed, the mirror and each reviewed machine's workload are checked in public every day | `.github/workflows/check.yml` | the repository's Actions tab |
 | What the watcher adds to NEAR's own verifier | `compare/src/main.rs` | README step 7 |
 
 ## Not claimed

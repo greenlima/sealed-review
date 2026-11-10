@@ -230,8 +230,17 @@ both providers agreeing, the contract locked (no access keys), holding the feed'
 `feed/`.
 
 Steps 3 and 4 also run every day in public, in `.github/workflows/check.yml`, without secrets: a run fails
-if an entry does not verify, the mirror does not confirm the feed, or a current verdict expires within 24
-hours. See: its runs under the repository's Actions tab.
+if an entry does not verify, the mirror does not confirm the feed, a current verdict expires within 24
+hours, or a reviewed machine now runs another workload than its verdict recorded. That last check is
+`watcher drift`, which you can run too:
+
+```
+watcher drift --feed feed --key feed-public-a.pem --key feed-public-b.pem
+```
+
+See: per host, each machine reached, as `unchanged`, `changed` (with each service that moved),
+`unrecorded` (an entry from before workloads were recorded), `not_reviewed` (a machine no verdict covers,
+which the gate refuses) or `not_reached`. See its runs under the repository's Actions tab.
 
 ## 5. Gate a request
 

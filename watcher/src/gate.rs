@@ -386,6 +386,7 @@ mod tests {
             tls_keys: vec!["aa".into()],
             model_keys: Vec::new(),
             open: Vec::new(),
+            machines: Vec::new(),
         }
     }
 

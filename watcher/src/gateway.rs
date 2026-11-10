@@ -103,6 +103,23 @@ pub async fn fetch(model: &str) -> Result<Bundle> {
     })
 }
 
+/// The candidates' reports in one gateway answer for `model`, without collateral or GPU evidence.
+pub async fn candidates(model: &str) -> Result<Vec<Report>> {
+    let response = fetch::client()?
+        .get(url(model, &fetch::new_nonce()?)?)
+        .header(ACCEPT, "application/json")
+        .header("x-no-aliasing", "true")
+        .send()
+        .await?
+        .error_for_status()?;
+    let (report, _) = fetch::body_and_peer(response).await?;
+    Answer::parse(&report)?
+        .model_attestations
+        .iter()
+        .map(|raw| Report::parse(raw.get()))
+        .collect()
+}
+
 impl Bundle {
     pub fn read(path: &Path) -> Result<Self> {
         let text =

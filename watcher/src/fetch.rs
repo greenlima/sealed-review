@@ -97,6 +97,19 @@ pub async fn sweep(host: &str, mut coverage: Coverage) -> Result<(u32, Vec<Bundl
     Ok((coverage.tries, bundles))
 }
 
+/// Reports alone, until `coverage` stops: one per machine reached, without collateral or GPU evidence.
+pub async fn reports(host: &str, mut coverage: Coverage) -> Result<Vec<Report>> {
+    let client = client()?;
+    let mut reports = Vec::new();
+    while !coverage.done() {
+        let observed = observe(&client, host).await?;
+        if coverage.observe(observed.machine()) {
+            reports.push(observed.parsed);
+        }
+    }
+    Ok(reports)
+}
+
 async fn observe(client: &reqwest::Client, host: &str) -> Result<Observed> {
     let nonce = new_nonce()?;
     let (report, peer_spki_sha256) = report(client, host, &nonce).await?;

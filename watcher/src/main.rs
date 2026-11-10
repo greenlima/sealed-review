@@ -9,6 +9,7 @@ mod binding;
 mod bundle;
 mod compose;
 mod diff;
+mod drift;
 mod e2ee;
 mod events;
 mod feed;
@@ -120,6 +121,17 @@ enum Command {
         contract: String,
         #[command(flatten)]
         feed: FeedArgs,
+    },
+    /// Fetch each unexpired verdict's host again, without a key, and report every reviewed machine whose workload changed
+    Drift {
+        #[command(flatten)]
+        feed: FeedArgs,
+        /// Most report fetches per host reached directly
+        #[arg(long, default_value_t = 6)]
+        tries: u32,
+        /// Stop after this many fetches in a row reach no new machine
+        #[arg(long, default_value_t = 3)]
+        quiet: u32,
     },
     /// Read the feed from its mirror and say whether a request to the host may be sent, and to which machines
     Gate {
@@ -409,6 +421,31 @@ async fn main() -> Result<()> {
             anyhow::ensure!(
                 report.ok,
                 "the mirror does not confirm this feed (see agree, locked, same_keys, standing)"
+            );
+        }
+        Command::Drift { feed, tries, quiet } => {
+            let summary = feed.open()?.summary(now()?);
+            let mut drifts = Vec::with_capacity(summary.current.len());
+            for current in summary.current.iter().filter(|c| !c.expired) {
+                let observed = drift::observe(current, fetch::Coverage::new(tries, quiet)).await?;
+                drifts.push(drift::compare(current, &observed));
+            }
+            println!("{}", serde_json::to_string_pretty(&drifts)?);
+            let changed: Vec<String> = drifts
+                .iter()
+                .flat_map(|d| {
+                    d.changed().map(move |(scope, changes)| {
+                        format!("{} {scope}: {}", d.host, changes.join("; "))
+                    })
+                })
+                .collect();
+            for line in &changed {
+                eprintln!("{line}");
+            }
+            anyhow::ensure!(
+                changed.is_empty(),
+                "{} reviewed machine(s) run another workload than their verdict recorded: a new review is due",
+                changed.len()
             );
         }
         Command::Gate { gate } => {

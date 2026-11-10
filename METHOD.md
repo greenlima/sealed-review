@@ -37,12 +37,31 @@ trust is built, from the CPU to the keys.
 | | `rtmr3_events`* | Every application event digest recomputes, and the compose and OS image events match the report. |
 | | `model_registered`* | The model the report names is one NEAR's registry, read in the same sweep, lists for the host. A host the registry omits fails; a bundle without the registry is `unknown`. The name is the machine's own claim, outside the quote: this catches a host serving another model, not a machine that lies. |
 | 6 Image provenance | — | Not checked yet: who built each container image, and from which source. |
-| 7 Runtime changes | `launcher_log_bound`* | The launcher's action log recomputes to its hash, carries our nonce and is quoted by the same machine. |
+| 7 Runtime changes | `launcher_log_bound`* | The launcher's action log recomputes to its hash, carries our nonce and is quoted by the same machine. The verdict records the workload the log leaves running (below). |
 | 8 GPUs | `gpu`* | NVIDIA's attestation service affirms every declared GPU with our nonce; its tokens are verified locally against pinned NVIDIA keys and each GPU's claims are read. |
 | | `nvswitch` | No NVSwitches are declared. Declared switches without switch evidence warn: in protected PCIe mode NVIDIA attests the switches too. |
 | 9 Key release | — | Not judged. Each verdict records the key service the machine measured and the one the compose pins, if any. |
 
 \* Required: a verdict can only be `affirming` if each required check is present once and passes.
+
+### The workload
+
+NEAR's measured compose starts a launcher, which then deploys the model services from files in a public
+repository at runtime. A new deployment changes neither the compose nor the TLS key, so the machine keeps its
+identity and the gate keeps passing it. Each verdict therefore records, per machine, the workload its launcher
+log leaves running: the compose-manager image last started and, for each service started and not stopped
+since, its deployment file, that file's SHA-256, and the tag and commit it came from. Services share one
+compose project, so a service belongs to the last file that started it; a service the log never stops stays
+listed.
+
+`watcher drift` fetches each unexpired verdict's host again and compares every machine it reaches with the
+machine of the same instance in the verdict. A service now running from another file or another file content,
+or another compose-manager image, is a change, and the command fails: the verdict no longer describes what
+serves requests, and a new review is due. A new tag on the same file content is no change. Machines the fetch
+reaches that no verdict reviewed are listed; the gate refuses their TLS keys anyway. The daily check runs it
+from GitHub's runners, whose addresses are known: a change it finds is real, but "unchanged" from there is not
+proof, since a provider could answer those addresses differently. Each signing session runs it again from
+elsewhere. The gate itself does not yet compare workloads per request.
 
 ## From checks to a verdict
 
@@ -131,8 +150,10 @@ verdict did not review.
 
 - That the hardware resists physical or side-channel attacks. Attestation trusts the CPU and GPU vendors'
   keys and their patch ratings.
-- That the containers' code is safe, or that the provider will not deploy different code tomorrow. A new
-  release is a new review.
+- That the containers' code is free of flaws. A machine can run exactly the reviewed software and still be
+  exploited through a flaw in it: attestation shows which code runs, not that it is safe.
+- That the workload is still the one reviewed. A redeployment keeps the machine's identity; `watcher drift`
+  detects it afterwards (above), the gate does not.
 - Who can obtain the app's keys. The key service releases them to any code its authorisation contract
   admits, and those contracts are not checked.
 - That the GPUs are attached to this machine beyond a shared nonce, or that machines not reached by our

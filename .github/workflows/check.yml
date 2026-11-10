@@ -44,3 +44,5 @@ jobs:
         run: |
           jq -e --argjson now "$(date +%s)" '[.current[].exp - $now] | all(. > 86400)' verify.json \
             || { echo "::error::a current verdict expires within 24 hours: a new signed entry is due"; exit 1; }
+      - name: Each reviewed machine still runs the workload its verdict recorded
+        run: target/release/watcher drift --feed feed --key feed-public-a.pem --key feed-public-b.pem | tee drift.json

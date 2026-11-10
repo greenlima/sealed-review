@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 
 use crate::bundle::{Bundle, Source, Stream};
 use crate::image::Images;
+use crate::launcher::Workload;
 use crate::ohttp::{self, KeyConfig};
 use crate::report::Report;
 use crate::verdict::{self, Check, Status, Tier, tier};
@@ -80,6 +81,9 @@ pub struct Facts {
     pub kms: Option<kms::Provider>,
     /// Empty: the compose accepts any key service.
     pub key_provider_id: Option<String>,
+    /// What the launcher runs, as its log leaves it; absent on a machine without a launcher.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workload: Option<Workload>,
 }
 
 fn facts(report: &Report, vm: &VmConfig, td: Option<&TDReport10>) -> Facts {
@@ -101,6 +105,10 @@ fn facts(report: &Report, vm: &VmConfig, td: Option<&TDReport10>) -> Facts {
         ohttp: ohttp::key(report),
         kms: kms::measured(&tcb.event_log),
         key_provider_id: kms::pinned(&tcb.app_compose),
+        workload: report
+            .compose_manager_attestation
+            .as_ref()
+            .map(|m| launcher::workload(&m.actions)),
     }
 }
 
