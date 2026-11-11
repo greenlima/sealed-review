@@ -4,11 +4,13 @@ Confidential AI asks you to trust that the provider's hardware runs the code it 
 usually issues that evidence itself. A receipt proves afterwards what a machine signed; Countersign decides
 beforehand whether to send your prompt, on a review signed by someone other than the provider:
 
-- **Held to what was published.** Besides the Intel TDX quote and NVIDIA's GPU attestation, the watcher
-  recomputes the boot measurements (MRTD, RTMR0–2) from the published OS image, so a machine is checked
-  against the image its provider published, not only against the event log it reports, and it judges
-  Intel's rating of the platform's patch level (TCB status). It also replays the event log and checks the
-  app's compose, the launcher log, and the TLS and OHTTP keys.
+- **Held to what was published.** Besides the Intel TDX quote and NVIDIA's GPU attestation (fresh for our
+  nonce, though NVIDIA's evidence is not bound to a machine; see
+  [METHOD.md](METHOD.md#what-a-verdict-does-not-say)), the watcher recomputes the boot measurements
+  (MRTD, RTMR0–2) from the published OS image, so a machine is checked against the image its provider
+  published, not only against the event log it reports, and it judges Intel's rating of the platform's
+  patch level (TCB status). It also replays the event log and checks the app's compose, the launcher log,
+  and the TLS and OHTTP keys.
 - **Signed by someone other than the provider.** Each review is an entry in a hash-chained feed, signed by a
   person on a YubiKey that attests it generated the key, and mirrored to a NEAR testnet contract that checks
   every signature itself and has no access keys, so nobody can change it.
@@ -87,6 +89,18 @@ repeated fetches reach, publishes the results signed, and lets a client act on t
 The report comes from IMY's data protection innovation sandbox with Volvo Group, CanaryBit and Ericsson, on
 trucks' camera and sensor data rather than AI, and is guidance, not a ruling; its English text is an
 automatic translation, and the Swedish version applies.
+
+## Related work
+
+Other tools check NEAR AI's attestation, and some go further in places. Brave's
+[near-verifier](https://github.com/brave/near-verifier) checks the gateway and each model machine against a
+reviewed dstack release and rebuilds NEAR's own images from source to check their provenance;
+[teep](https://github.com/13rac1/teep) checks measurements against allowlists, judges Intel's TCB status and
+binds TLS, for NEAR and other providers. Both tell the person running them whether a provider is fine at that
+moment. Countersign computes the expected boot measurements from the published OS image itself, and adds
+what a verifier leaves to each user: one reviewer's answer, signed on a hardware key, that expires, kept in a
+NEAR contract nobody can change, and acted on by a gate before a prompt leaves. A verdict could cite such a
+tool's result, a rebuild for instance, as one of its reasons.
 
 ## What you need
 

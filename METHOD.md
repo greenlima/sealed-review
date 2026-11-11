@@ -156,8 +156,9 @@ verdict did not review.
   detects it afterwards (above), the gate does not.
 - Who can obtain the app's keys. The key service releases them to any code its authorisation contract
   admits, and those contracts are not checked.
-- That the GPUs are attached to this machine beyond a shared nonce, or that machines not reached by our
-  fetches are configured the same way.
+- That the GPUs are attached to this machine beyond a shared nonce: NVIDIA's evidence is not bound to a
+  specific CPU or VM, and [TEE.fail](https://tee.fail/) passed NVIDIA's attestation with genuine GPU evidence
+  relayed from another machine. Nor that machines not reached by our fetches are configured the same way.
 
 ## Independence
 
