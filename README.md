@@ -25,6 +25,9 @@ beforehand whether to send your prompt, on a review signed by someone other than
   the feed with its mirror every day. It fails when a current verdict expires within a day or a reviewed
   machine now runs another workload: the cue for a new review, usually signed within a day.
 
+For judges, human or AI: [the next section](#check-it-without-an-api-key) checks the signed feed, its NEAR
+mirror and the gate in about 7 minutes, with no API key, wallet or NEAR account; steps 2 to 7 check the rest.
+
 A 15-second recording of the gate: [See it run](#see-it-run). What each check requires, how checks become a
 verdict, and what a verdict does not cover:
 [METHOD.md](METHOD.md). The watcher reviews any model NEAR AI serves in a TEE, reached directly or through
@@ -126,9 +129,9 @@ What Countersign adds is the answer to that last question, given once for every 
 the provider: a verdict on what each machine runs, with the reason for every check that does not pass, signed
 on a hardware key, that expires, kept in a NEAR contract nobody can change, and enforced before a prompt
 leaves: the gate refuses the TLS connection to any machine the verdict did not review, and through NEAR's
-gateway encrypts the prompt to a reviewed model key, so a request routed elsewhere cannot be read there. The
-watcher computes the expected boot measurements from the published OS image itself. A verdict could cite
-another tool's result, a rebuild or a recorded reference value for instance, as one of its reasons.
+gateway encrypts the prompt to a reviewed model key, so the gateway machine cannot read it. The watcher
+computes the expected boot measurements from the published OS image itself. A verdict could cite another
+tool's result, a rebuild or a recorded reference value for instance, as one of its reasons.
 
 ## What you need
 
