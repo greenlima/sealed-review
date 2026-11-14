@@ -124,10 +124,11 @@ Inference (ACI) specification; whether to accept the software a report names, it
 
 What Countersign adds is the answer to that last question, given once for every client by someone other than
 the provider: a verdict on what each machine runs, with the reason for every check that does not pass, signed
-on a hardware key, that expires, kept in a NEAR contract nobody can change, and enforced by a gate before a
-prompt leaves. The watcher computes the expected boot measurements from the published OS image itself. A
-verdict could cite another tool's result, a rebuild or a recorded reference value for instance, as one of its
-reasons.
+on a hardware key, that expires, kept in a NEAR contract nobody can change, and enforced before a prompt
+leaves: the gate refuses the TLS connection to any machine the verdict did not review, and through NEAR's
+gateway encrypts the prompt to a reviewed model key, so a request routed elsewhere cannot be read there. The
+watcher computes the expected boot measurements from the published OS image itself. A verdict could cite
+another tool's result, a rebuild or a recorded reference value for instance, as one of its reasons.
 
 ## What you need
 
