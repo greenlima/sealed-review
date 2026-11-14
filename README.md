@@ -1,5 +1,11 @@
 # Countersign
 
+![The gate refusing a prompt to NEAR AI's gateway on a "warning" verdict, then, once the user accepts
+warnings, listing each warning and sending the prompt end-to-end encrypted](docs/demo.gif)
+
+Recorded on 10 Nov 2026, when the gateway route (entry 4) read `warning`; the current gateway entry reads
+`none` ([step 2b](#2b-review-the-route-through-nears-gateway)).
+
 Confidential AI asks you to trust that the provider's hardware runs the code it claims, and the provider
 usually issues that evidence itself. A receipt proves afterwards what a machine signed; Countersign decides
 beforehand whether to send your prompt, on a review signed by someone other than the provider:
@@ -102,6 +108,13 @@ what a verifier leaves to each user: one reviewer's answer, signed on a hardware
 NEAR contract nobody can change, and acted on by a gate before a prompt leaves. A verdict could cite such a
 tool's result, a rebuild for instance, as one of its reasons.
 
+[Private Inference Beat](https://github.com/amiller/awesome-private-inference) compares private-inference
+routes across providers, NEAR's included, and keeps dated reference values and the evidence behind each
+assessment; its assessments are preliminary and award no stage. Dstack's
+[Private AI Gateway](https://github.com/Dstack-TEE/private-ai-gateway) verifies a fresh report and pins TLS
+before each request, as the gate here does, for providers that follow dstack's Attested Confidential
+Inference (ACI) specification.
+
 ## What you need
 
 - Rust 1.92 or later for the watcher; Rust 1.99.1 for the mirror contract (pinned in
@@ -166,8 +179,12 @@ See: `<instance>: N candidate machine(s); saved gateway.json`, then the OS image
 each candidate, then the route's review as JSON: the gateway machine's checks, each candidate's, and the
 route's own two checks. The route is at most `warning`, because no client can see which machine the gateway
 forwards to (`forwarding_observable`). Each candidate must be a machine the direct sweep in `near` reached
-within 24 hours (`reached_directly`). `gateway fetch --model <model id>` reviews the route for another model
-(the default is `z-ai/glm-5.3-flash`); `--direct` then names a direct sweep of that same model.
+within 24 hours (`reached_directly`). A candidate the sweep did not reach makes its check `unknown` and the
+route `none`, which the gate refuses. Since 13 Nov NEAR's gateway reports every machine it may forward to;
+one of them serves NEAR's long-context host, `glm-5-3-flash-long.completions.near.ai`, which `fetch` does not
+sweep, so entry 12 is `none`. Accepting a sweep of each host that serves the model is planned.
+`gateway fetch --model <model id>` reviews the route for another model (the default is
+`z-ai/glm-5.3-flash`); `--direct` then names a direct sweep of that same model.
 
 ## 3. Verify the signed feed
 
@@ -283,6 +300,10 @@ NEARAI_API_KEY=... watcher ask --contract sealed-review-feed.testnet --key feed-
 See: the same through the gateway, plus `end-to-end encrypted to model key …`. The prompt leaves your
 machine encrypted to a reviewed model key, and an answer that does not decrypt to this request's key is
 refused. What this does and does not hide: [METHOD.md](METHOD.md#what-passing-the-gate-means).
+
+While the current gateway entry is `none` (entry 12, see step 2b), this stops at a refusal that begins
+`refused: verdict 12 is "none"`: the gate refusing a route it could not fully review. The direct route above
+is unaffected.
 
 ## 6. The mirror contract
 
