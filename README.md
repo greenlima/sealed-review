@@ -23,15 +23,16 @@ beforehand whether to send your prompt, on a review signed by someone other than
   verdict, so a NEAR contract or app can act on the same review.
 - **Rerunnable by anyone.** The evidence behind each entry is published with it, and a public check compares
   the feed with its mirror every day. It fails when a current verdict expires within a day or a reviewed
-  machine now runs another workload: the cue for a new review, usually signed the same day.
+  machine now runs another workload: the cue for a new review, usually signed within a day.
 
-What each check requires, how checks become a verdict, and what a verdict does not cover:
+A 15-second recording of the gate: [See it run](#see-it-run). What each check requires, how checks become a
+verdict, and what a verdict does not cover:
 [METHOD.md](METHOD.md). The watcher reviews any model NEAR AI serves in a TEE, reached directly or through
 NEAR's gateway (`--host`, `--model`); the feed covers one so far, GLM 5.3 Flash, by both routes. This
 repository is our entry in the NEAR hackathon (tracks: Privacy & Private AI, AI Security & Defense). NEAR, a
 provider the feed reviews, pays the hackathon's prizes; see [Independence](METHOD.md#independence). For
 coding agents: [AGENTS.md](AGENTS.md). Countersign is the project's name; `sealed-review` is its
-repository, its NEAR accounts and its policy id. A 15-second recording of the gate: [See it run](#see-it-run).
+repository, its NEAR accounts and its policy id.
 
 Licensed under the [Apache License 2.0](LICENSE).
 
@@ -54,7 +55,8 @@ See: the build needs crates.io once; the tests and `verify` run without network.
 verdict per host and fails if one byte of any entry changes. `mirror` and `gate` only read NEAR testnet, from
 two public RPC providers, with no account or key: `mirror` prints `"ok": true` when the contract confirms the
 feed, and `gate` prints the machines a request may go to, or exits with status 1 and `refused: …` giving
-every reason, which is the gate working. The last test starts a local server the verdict did not review and
+every reason, which is the gate working: while the current verdict is `warning`, it refuses unless you add
+`--accept warning`. The last test starts a local server the verdict did not review and
 shows that the gate sends it nothing. Steps 2 to 7 below cover the rest; only `watcher ask` needs a NEAR AI
 API key.
 
@@ -191,12 +193,13 @@ See: `<instance>: N candidate machine(s); saved gateway.json`, then the OS image
 each candidate, then the route's review as JSON: the gateway machine's checks, each candidate's, and the
 route's own two checks. The route is at most `warning`, because no client can see which machine the gateway
 forwards to (`forwarding_observable`). Each candidate must be a machine the direct sweep in `near` reached
-within 24 hours (`reached_directly`). A candidate the sweep did not reach makes its check `unknown` and the
-route `none`, which the gate refuses. Since 13 Nov NEAR's gateway reports every machine it may forward to;
-one of them serves NEAR's long-context host, `glm-5-3-flash-long.completions.near.ai`, which `fetch` does not
-sweep, so entry 12 is `none`. Accepting a sweep of each host that serves the model is planned.
-`gateway fetch --model <model id>` reviews the route for another model (the default is
-`z-ai/glm-5.3-flash`); `--direct` then names a direct sweep of that same model.
+within 24 hours (`reached_directly`). `gateway fetch --model <model id>` reviews the route for another model
+(the default is `z-ai/glm-5.3-flash`); `--direct` then names a direct sweep of that same model.
+
+A candidate the sweep did not reach makes its check `unknown` and the route `none`, which the gate refuses.
+Since 13 Nov NEAR's gateway reports every machine it may forward to; one of them serves NEAR's long-context
+host, `glm-5-3-flash-long.completions.near.ai`, which `fetch` does not sweep, so entry 12 is `none`.
+Accepting a sweep of each host that serves the model is planned.
 
 ## 3. Verify the signed feed
 
@@ -264,6 +267,10 @@ jq -c '{nonce, fetched_at}' evidence/$seq/gateway.json
 
 ## 4. Compare the feed with its NEAR testnet mirror
 
+The mirror is the NEAR testnet contract `sealed-review-feed.testnet`: it accepts an entry only if a feed key
+signed it and it follows the last one, and it has no access keys; step 6 checks that the deployed code is this
+repository's.
+
 ```sh
 watcher mirror --contract sealed-review-feed.testnet --feed feed --key feed-public-a.pem --key feed-public-b.pem
 ```
@@ -282,8 +289,8 @@ for url in https://test.rpc.fastnear.com https://archival-rpc.testnet.near.org; 
 done
 ```
 
-See: from each provider, each host with its current entry, status and expiry (`exp`, in Unix seconds), the
-same from both. Every `append` that added an entry is also listed on a block explorer, a third view of the
+See: each host's current entry, status and expiry (`exp`, in Unix seconds), identical from both providers.
+Every `append` that added an entry is also listed on a block explorer, a third view of the
 chain, for example [NearBlocks](https://testnet.nearblocks.io/address/sealed-review-feed.testnet), whose
 Access Keys tab is empty.
 
@@ -314,8 +321,8 @@ verdict that did not pass, with its reason (each check id is explained in [METHO
 NEARAI_API_KEY=... watcher ask --contract sealed-review-feed.testnet --key feed-public-a.pem --key feed-public-b.pem --prompt "Hello"
 ```
 
-See: with `--accept warning`, a table of each check the verdict did not pass, with its reason, before the
-request is sent; then the TLS key of the machine that served it, and the model's answer between two rules (on
+See: while the verdict is `warning`, a refusal naming it; with `--accept warning`, a table of each check the
+verdict did not pass, with its reason, before the request is sent; then the TLS key of the machine that served it, and the model's answer between two rules (on
 stdout, the answer alone; colour only on a terminal, and never with `NO_COLOR` set). The gate checks the server's key
 during the TLS handshake, so no request byte reaches a machine the verdict did not review.
 
