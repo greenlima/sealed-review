@@ -1,11 +1,5 @@
 # Countersign
 
-![The gate refusing a prompt to NEAR AI's gateway on a "warning" verdict, then, once the user accepts
-warnings, listing each warning and sending the prompt end-to-end encrypted](docs/demo.gif)
-
-Recorded on 10 Nov 2026, when the gateway route (entry 4) read `warning`; the current gateway entry reads
-`none` ([step 2b](#2b-review-the-route-through-nears-gateway)).
-
 Confidential AI asks you to trust that the provider's hardware runs the code it claims, and the provider
 usually issues that evidence itself. A receipt proves afterwards what a machine signed; Countersign decides
 beforehand whether to send your prompt, on a review signed by someone other than the provider:
@@ -36,7 +30,7 @@ NEAR's gateway (`--host`, `--model`); the feed covers one so far, GLM 5.3 Flash,
 repository is our entry in the NEAR hackathon (tracks: Privacy & Private AI, AI Security & Defense). NEAR, a
 provider the feed reviews, pays the hackathon's prizes; see [Independence](METHOD.md#independence). For
 coding agents: [AGENTS.md](AGENTS.md). Countersign is the project's name; `sealed-review` is its
-repository, its NEAR accounts and its policy id.
+repository, its NEAR accounts and its policy id. A 15-second recording of the gate: [See it run](#see-it-run).
 
 Licensed under the [Apache License 2.0](LICENSE).
 
@@ -103,17 +97,21 @@ Other tools check NEAR AI's attestation, and some go further in places. Brave's
 reviewed dstack release and rebuilds NEAR's own images from source to check their provenance;
 [teep](https://github.com/13rac1/teep) checks measurements against allowlists, judges Intel's TCB status and
 binds TLS, for NEAR and other providers. Both tell the person running them whether a provider is fine at that
-moment. Countersign computes the expected boot measurements from the published OS image itself, and adds
-what a verifier leaves to each user: one reviewer's answer, signed on a hardware key, that expires, kept in a
-NEAR contract nobody can change, and acted on by a gate before a prompt leaves. A verdict could cite such a
-tool's result, a rebuild for instance, as one of its reasons.
+moment.
 
 [Private Inference Beat](https://github.com/amiller/awesome-private-inference) compares private-inference
 routes across providers, NEAR's included, and keeps dated reference values and the evidence behind each
-assessment; its assessments are preliminary and award no stage. Dstack's
+assessment; its assessments are preliminary, award no stage and carry no append-only guarantee. Dstack's
 [Private AI Gateway](https://github.com/Dstack-TEE/private-ai-gateway) verifies a fresh report and pins TLS
 before each request, as the gate here does, for providers that follow dstack's Attested Confidential
-Inference (ACI) specification.
+Inference (ACI) specification; whether to accept the software a report names, it leaves to the user.
+
+What Countersign adds is the answer to that last question, given once for every client by someone other than
+the provider: a verdict on what each machine runs, with the reason for every check that does not pass, signed
+on a hardware key, that expires, kept in a NEAR contract nobody can change, and enforced by a gate before a
+prompt leaves. The watcher computes the expected boot measurements from the published OS image itself. A
+verdict could cite another tool's result, a rebuild or a recorded reference value for instance, as one of its
+reasons.
 
 ## What you need
 
@@ -355,3 +353,11 @@ mirror contract), and `nearai-inference-sdk` (NEAR's own verifier, in `compare/`
 in each `Cargo.toml`, the exact versions in each `Cargo.lock`.
 
 Written with AI coding assistants (Cursor); every change reviewed and tested by the author.
+
+## See it run
+
+![The gate refusing a prompt to NEAR AI's gateway on a "warning" verdict, then, once the user accepts
+warnings, listing each warning and sending the prompt end-to-end encrypted](docs/demo.gif)
+
+Recorded on 10 Nov 2026, when the gateway route (entry 4) read `warning`; the current gateway entry reads
+`none` ([step 2b](#2b-review-the-route-through-nears-gateway)).
