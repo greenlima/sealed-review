@@ -90,6 +90,16 @@ The report comes from IMY's data protection innovation sandbox with Volvo Group,
 trucks' camera and sensor data rather than AI, and is guidance, not a ruling; its English text is an
 automatic translation, and the Swedish version applies.
 
+## Who it's for
+
+- **Apps built on NEAR AI that promise their users privacy:** they can refuse to send a prompt unless a
+  current verdict passes, without building and maintaining a verifier of their own.
+- **Organisations with data-protection duties:** they get evidence about the provider from someone other
+  than the provider, as IMY's report suggests.
+- **NEAR contracts and agents that act on AI output:** they can read the same verdict onchain with
+  `latest(host)` before relying on a provider's answer.
+- **Providers:** they can point to an independent review that expires, rather than to their own word.
+
 ## Related work
 
 Other tools check NEAR AI's attestation, and some go further in places. Brave's
