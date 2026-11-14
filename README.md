@@ -27,15 +27,16 @@ beforehand whether to send your prompt, on a review signed by someone other than
 
 For judges, human or AI: [the next section](#check-it-without-an-api-key) checks the signed feed, its NEAR
 mirror and the gate in about 7 minutes, with no API key, wallet or NEAR account; steps 2 to 7 check the rest.
+For coding agents: [AGENTS.md](AGENTS.md).
 
 A 15-second recording of the gate: [See it run](#see-it-run). What each check requires, how checks become a
-verdict, and what a verdict does not cover:
-[METHOD.md](METHOD.md). The watcher reviews any model NEAR AI serves in a TEE, reached directly or through
-NEAR's gateway (`--host`, `--model`); the feed covers one so far, GLM 5.3 Flash, by both routes. This
-repository is our entry in the NEAR hackathon (tracks: Privacy & Private AI, AI Security & Defense). NEAR, a
-provider the feed reviews, pays the hackathon's prizes; see [Independence](METHOD.md#independence). For
-coding agents: [AGENTS.md](AGENTS.md). Countersign is the project's name; `sealed-review` is its
-repository, its NEAR accounts and its policy id.
+verdict, and what a verdict does not cover: [METHOD.md](METHOD.md). The watcher reviews any model NEAR AI
+serves in a TEE, reached directly or through NEAR's gateway (`--host`, `--model`); the feed covers one so far,
+GLM 5.3 Flash, by both routes.
+
+This repository is our entry in the NEAR hackathon (tracks: Privacy & Private AI, AI Security & Defense).
+NEAR, a provider the feed reviews, pays the hackathon's prizes; see [Independence](METHOD.md#independence).
+Countersign is the project's name; `sealed-review` is its repository, its NEAR accounts and its policy id.
 
 Licensed under the [Apache License 2.0](LICENSE).
 
