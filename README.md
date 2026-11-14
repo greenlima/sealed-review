@@ -22,7 +22,8 @@ beforehand whether to send your prompt, on a review signed by someone other than
 - **Readable by other contracts.** The mirror answers `hosts` and `latest(host)` with each host's current
   verdict, so a NEAR contract or app can act on the same review.
 - **Rerunnable by anyone.** The evidence behind each entry is published with it, and a public check compares
-  the feed with its mirror every day.
+  the feed with its mirror every day. It fails when a current verdict expires within a day or a reviewed
+  machine now runs another workload: the cue for a new review, usually signed the same day.
 
 What each check requires, how checks become a verdict, and what a verdict does not cover:
 [METHOD.md](METHOD.md). The watcher reviews any model NEAR AI serves in a TEE, reached directly or through
