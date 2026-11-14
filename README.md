@@ -272,18 +272,20 @@ See: the mirror read from `test.rpc.fastnear.com` and `archival-rpc.testnet.near
 both providers agreeing, the contract locked (no access keys), holding the feed's two keys, and in sync with
 `feed/`.
 
-To read the current verdicts from the contract directly, as a NEAR contract or app would, without the watcher:
+To read the current verdicts from the contract directly, as a NEAR contract or app would, without the watcher,
+from the same two RPC providers:
 
 ```sh
-rpc() { curl -s https://test.rpc.fastnear.com -H 'Content-Type: application/json' -d "$1"; }
-view() { rpc "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"sealed-review-feed.testnet\",\"method_name\":\"$1\",\"args_base64\":\"$(printf '%s' "$2" | base64 -w0)\"}}" | jq '.result.result | implode | fromjson'; }
-view hosts '{}'
-view latest '{"host":"glm-5-3-flash.completions.near.ai"}'
+view() { curl -s "$1" -H 'Content-Type: application/json' -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"sealed-review-feed.testnet\",\"method_name\":\"$2\",\"args_base64\":\"$(printf '%s' "$3" | base64 -w0)\"}}" | jq -c '.result.result | implode | fromjson'; }
+for url in https://test.rpc.fastnear.com https://archival-rpc.testnet.near.org; do
+  echo "$url"; view "$url" hosts '{}'; view "$url" latest '{"host":"glm-5-3-flash.completions.near.ai"}'
+done
 ```
 
-See: each host with its current entry, status and expiry (`exp`, in Unix seconds). Every `append` that added
-an entry is listed on a block explorer, for example
-[NearBlocks](https://testnet.nearblocks.io/address/sealed-review-feed.testnet), whose Access Keys tab is empty.
+See: from each provider, each host with its current entry, status and expiry (`exp`, in Unix seconds), the
+same from both. Every `append` that added an entry is also listed on a block explorer, a third view of the
+chain, for example [NearBlocks](https://testnet.nearblocks.io/address/sealed-review-feed.testnet), whose
+Access Keys tab is empty.
 
 Steps 3 and 4 also run every day in public, in `.github/workflows/check.yml`, without secrets: a run fails
 if an entry does not verify, the mirror does not confirm the feed, a current verdict expires within 24
