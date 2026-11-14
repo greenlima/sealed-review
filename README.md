@@ -37,6 +37,9 @@ Licensed under the [Apache License 2.0](LICENSE).
 
 ## Check it without an API key
 
+Needs Rust 1.92 or later ([rustup](https://rustup.rs)); if `cargo` is not found in a new shell, run
+`source ~/.cargo/env`.
+
 ```sh
 cargo build --release -p watcher
 cargo test -p watcher
