@@ -272,6 +272,19 @@ See: the mirror read from `test.rpc.fastnear.com` and `archival-rpc.testnet.near
 both providers agreeing, the contract locked (no access keys), holding the feed's two keys, and in sync with
 `feed/`.
 
+To read the current verdicts from the contract directly, as a NEAR contract or app would, without the watcher:
+
+```sh
+rpc() { curl -s https://test.rpc.fastnear.com -H 'Content-Type: application/json' -d "$1"; }
+view() { rpc "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"query\",\"params\":{\"request_type\":\"call_function\",\"finality\":\"final\",\"account_id\":\"sealed-review-feed.testnet\",\"method_name\":\"$1\",\"args_base64\":\"$(printf '%s' "$2" | base64 -w0)\"}}" | jq '.result.result | implode | fromjson'; }
+view hosts '{}'
+view latest '{"host":"glm-5-3-flash.completions.near.ai"}'
+```
+
+See: each host with its current entry, status and expiry (`exp`, in Unix seconds). Every `append` that added
+an entry is listed on a block explorer, for example
+[NearBlocks](https://testnet.nearblocks.io/address/sealed-review-feed.testnet), whose Access Keys tab is empty.
+
 Steps 3 and 4 also run every day in public, in `.github/workflows/check.yml`, without secrets: a run fails
 if an entry does not verify, the mirror does not confirm the feed, a current verdict expires within 24
 hours, or a reviewed machine now runs another workload than its verdict recorded. That last check is
