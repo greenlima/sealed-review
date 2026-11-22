@@ -238,19 +238,28 @@ pub struct Review {
     pub candidates: Vec<review::Review>,
 }
 
-fn route_checks(candidates: usize) -> Vec<Check> {
-    let present = match candidates {
+fn route_checks(listings: usize, machines: usize) -> Vec<Check> {
+    let present = match listings {
         0 => Check::new(
             12,
             "candidates",
             Status::Unknown,
             "the answer has no model evidence",
         ),
-        n => Check::new(
+        n if n == machines => Check::new(
             12,
             "candidates",
             Status::Pass,
             format!("{n} candidate machine(s)"),
+        ),
+        n => Check::new(
+            12,
+            "candidates",
+            Status::Pass,
+            format!(
+                "{n} candidate listings of {machines} machine(s): the gateway lists a machine once \
+                 for each context group it serves, and each repeat gave the same review"
+            ),
         ),
     };
     vec![
@@ -303,6 +312,8 @@ pub fn review(
             review::machine(c, images, Role::Candidate, extra)
         })
         .collect::<Result<Vec<_>>>()?;
+    let listings = candidates.len();
+    let candidates = distinct(candidates)?;
     let tiers: Vec<Tier> = candidates.iter().map(|c| c.tier).collect();
     Ok(Review {
         watcher: concat!("sealed-review-watcher/", env!("CARGO_PKG_VERSION")),
@@ -312,10 +323,32 @@ pub fn review(
         nonce,
         peer_spki_sha256,
         tier: route_tier(gateway.tier, &tiers),
-        route: route_checks(candidates.len()),
+        route: route_checks(listings, candidates.len()),
         gateway,
         candidates,
     })
+}
+
+/// One review per machine, in the answer's order. The gateway lists a machine once for each context
+/// group it serves; a repeat is dropped only when its review is the same in every field.
+pub(crate) fn distinct(listed: Vec<review::Review>) -> Result<Vec<review::Review>> {
+    let mut kept: Vec<(serde_json::Value, review::Review)> = Vec::with_capacity(listed.len());
+    for candidate in listed {
+        let value = serde_json::to_value(&candidate)?;
+        let first = kept.iter().find(|(_, k)| {
+            k.facts.instance_id == candidate.facts.instance_id
+                && k.facts.tls_key == candidate.facts.tls_key
+        });
+        match first {
+            None => kept.push((value, candidate)),
+            Some((first, _)) => ensure!(
+                *first == value,
+                "machine {} is listed more than once with different reviews",
+                candidate.facts.instance_id
+            ),
+        }
+    }
+    Ok(kept.into_iter().map(|(_, review)| review).collect())
 }
 
 #[cfg(test)]
@@ -352,6 +385,14 @@ mod tests {
         assert_eq!(route_tier(Affirming, &[None, Affirming]), None);
         assert_eq!(route_tier(Contraindicated, &[None]), Contraindicated);
         assert_eq!(route_tier(Affirming, &[]), None);
+    }
+
+    #[test]
+    fn repeated_listings_are_named_on_the_route() {
+        let detail = |listings, machines| route_checks(listings, machines).remove(0).detail;
+        assert_eq!(detail(3, 3), "3 candidate machine(s)");
+        assert!(detail(4, 3).starts_with("4 candidate listings of 3 machine(s): "));
+        assert_eq!(route_checks(0, 0)[0].status, Status::Unknown);
     }
 
     #[test]

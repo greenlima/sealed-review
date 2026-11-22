@@ -1200,18 +1200,20 @@ mod tests {
         }
     }
 
+    fn candidate(instance: &str, tls: Option<String>, fetched_at: u64) -> Review {
+        let (_, mut review) = reviewed(sample(instance, "", fetched_at));
+        review.facts.instance_id = instance.into();
+        review.facts.tls_key = tls;
+        review.facts.signing_key = format!("ed25519:{}", instance.len().to_string().repeat(64));
+        review.tier = Tier::Warning;
+        review.checks = ["signer_bound", "reached_directly"]
+            .map(|id| Check::new(5, id, Status::Pass, "test"))
+            .into();
+        review
+    }
+
     fn gateway_review(fetched_at: u64) -> gateway::Review {
-        let machine = |instance: &str, tls: Option<String>| {
-            let (_, mut review) = reviewed(sample(instance, "", fetched_at));
-            review.facts.instance_id = instance.into();
-            review.facts.tls_key = tls;
-            review.facts.signing_key = format!("ed25519:{}", instance.len().to_string().repeat(64));
-            review.tier = Tier::Warning;
-            review.checks = ["signer_bound", "reached_directly"]
-                .map(|id| Check::new(5, id, Status::Pass, "test"))
-                .into();
-            review
-        };
+        let machine = |instance: &str, tls: Option<String>| candidate(instance, tls, fetched_at);
         let mut unmatched = machine("model-two", Some("dd".repeat(32)));
         unmatched.checks[1].status = Status::Unknown;
         gateway::Review {
@@ -1280,6 +1282,55 @@ mod tests {
             feed.gateway_verdict(&gateway_review(f.now - MAX_AGE_SECS), f.now)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn a_machine_listed_twice_alike_is_drafted_once() {
+        let f = Fixture::new("gateway-repeat");
+        let at = f.now - 60;
+        let listing = |instance: &str, tls: &str| candidate(instance, Some(tls.repeat(32)), at);
+        let mut review = gateway_review(at);
+        review.candidates = vec![listing("model-1", "cc"), listing("model-1", "cc")];
+        assert!(
+            f.feed().unwrap().gateway_verdict(&review, f.now).is_err(),
+            "the draft itself still refuses a machine twice"
+        );
+        review.candidates = gateway::distinct(vec![
+            listing("model-1", "cc"),
+            listing("model-2", "dd"),
+            listing("model-1", "cc"),
+        ])
+        .unwrap();
+        let instances: Vec<&str> = review
+            .candidates
+            .iter()
+            .map(|c| c.facts.instance_id.as_str())
+            .collect();
+        assert_eq!(instances, ["model-1", "model-2"]);
+        let claims = f.feed().unwrap().gateway_verdict(&review, f.now).unwrap();
+        assert_eq!(claims["submods"].as_object().unwrap().len(), 3);
+        assert_eq!(claims["sr_scope"]["machines"], 3);
+    }
+
+    #[test]
+    fn a_repeat_that_differs_is_refused() {
+        let at = 1_800_000_000;
+        let first = candidate("model-1", Some("cc".repeat(32)), at);
+        let mut repeat = candidate("model-1", Some("cc".repeat(32)), at);
+        repeat.checks[1].status = Status::Unknown;
+        let error = gateway::distinct(vec![first, repeat]).unwrap_err();
+        assert!(error.to_string().contains("different reviews"), "{error}");
+    }
+
+    #[test]
+    fn one_instance_under_two_keys_is_kept_twice() {
+        let at = 1_800_000_000;
+        let kept = gateway::distinct(vec![
+            candidate("model-1", Some("cc".repeat(32)), at),
+            candidate("model-1", Some("ee".repeat(32)), at),
+        ])
+        .unwrap();
+        assert_eq!(kept.len(), 2);
     }
 
     #[test]

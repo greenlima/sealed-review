@@ -38,6 +38,17 @@ This repository is our entry in the NEAR hackathon (tracks: Privacy & Private AI
 NEAR, a provider the feed reviews, pays the hackathon's prizes; see [Independence](METHOD.md#independence).
 Countersign is the project's name; `sealed-review` is its repository, its NEAR accounts and its policy id.
 
+**Changes since submission.** The code judged in the hackathon is the tag
+[`submission-2026-11-14`](https://github.com/greenlima/sealed-review/tree/submission-2026-11-14). Since then,
+`main` receives only the maintenance needed to keep signing as NEAR's deployment changes, each change listed
+here; every feed entry names the build that drafted it. Further improvements to the watcher, such as a
+record for dstack 0.5.15 (current entries show its `xfam` check as unknown), are held back until the
+hackathon's results.
+
+- `0.1.1` (22 Nov): NEAR's gateway lists a machine once for each context group it serves (base and long
+  context). The watcher keeps one review of such a machine, only when every listing gives the same review,
+  and names the repeat in the route's `candidates` check; when the listings differ, it refuses the answer.
+
 Licensed under the [Apache License 2.0](LICENSE).
 
 ## Check it without an API key
